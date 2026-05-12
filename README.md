@@ -1,50 +1,73 @@
-# Nairobi HeatMap: Heat Vulnerability Assessment
+# Nairobi Heat Vulnerability Assessment
+
+**A semester project for the [EPFL ETHOS Lab](https://www.epfl.ch/labs/ethos/).**
 
 ## Project Overview
-This project aims to assess the heat vulnerability of the built environment, focusing on thermal exposure and building performance, with a case study on Nairobi. 
+This project aims to assess the heat vulnerability of Nairobi. It addresses the tension between rising cooling demands, thermal stress in vulnerable neighborhoods, and climate mitigation objectives through comprehensive geospatial analysis.
 
-Rising temperatures and rapid urbanization are significantly increasing cooling needs, often amplifying the Urban Heat Island (UHI) effect. This project addresses the tension between rising cooling demands, thermal stress in vulnerable neighborhoods, and climate mitigation objectives by exploring building performance, policy enforcement, and occupant behavior.
+The assessment is structured around three core pillars of vulnerability:
+1. **Exposure**: Thermal exposure derived from Land Surface Temperature (LST) and classification of formal vs. informal settlements.
+2. **Sensitivity**: Demographic factors, particularly analyzing high-resolution population density, including vulnerable age groups (elderly and children).
+3. **Adaptive Capacity**: The ability of neighborhoods to cope with heat, measured through spatial proximity to resources like healthcare, water sources, green spaces, road networks, retail, and potential cooling centers.
 
-## Key Objectives
-1. **Geospatial Analysis:** Estimate spatial patterns of heat exposure, cooling needs, and energy demand using thermal satellite data and high-resolution imagery.
-
-## Proposed Project Structure
+## Project Structure
 
 ```text
-Nairobi_HeatMap/
+Nairobi_Heat_Vulnerability_Assessment/
 │
-├── data/
-│   ├── raw/                 # Raw datasets (satellite imagery, surveys, policy docs)
-│   ├── processed/           # Cleaned and preprocessed data
-│   └── geospatial/          # GIS data, shapefiles, thermal maps
+├── data/                    # Geospatial data, satellite imagery, and shapefiles
+├── notebooks/               # Core analytical pipelines
+│   ├── 1_1_heatmap.ipynb                 # LST and thermal exposure mapping
+│   ├── 1_2_settlement_classification.ipynb # Formal/Informal settlement detection
+│   ├── 2_1_sensitivity.ipynb             # Population demographic processing
+│   └── 3_1_adaptive_capacity.ipynb       # Accessibility and infrastructure proximity
 │
-├── notebooks/               # Jupyter notebooks for data exploration and analysis
-│   ├── 01_data_preprocessing.ipynb
-│   └── 02_geospatial_analysis.ipynb
+├── src/                     # Python helper modules for spatial analysis and data processing
+│   ├── adaptive_capacity_helper.py
+│   ├── sensitivity_helper.py
+│   ├── settlement_classifier.py
+│   └── ...
 │
-├── src/                     # Source code for the assessment tool and data processing
-│   ├── data_loader.py       # Scripts to fetch and load data
-│   └── geospatial.py        # Geospatial processing functions
-|
-├── docs/                    # Documentation, literature review, and policy reports
-│   └── literature_review.md
-│
-├── results/                 # Generated figures, tables, and maps for the final report
-│   ├── figures/
-│   └── outputs/
-│
-├── requirements.txt         # Python dependencies
-└── README.md                # Project overview and instructions
+├── webapp/                  # Interactive webapp to visualize the results
+├── results/                 # Generated maps for the webapp
+├── docs/                    # Additional documentation and literature
+├── requirements.txt         # Python environment dependencies
+└── README.md                # This project overview
 ```
 
 ## Getting Started
-We first made a project decomposition in stages:
-1. Exposure:
-    - Heat Map: Not so easy but much more sourced and easy to reproduce than settlements classification. 
-    - Settlements classification: Much harder than what imagined. The training data is hard to get right. Poor result:
-        - Way of improvement: Make better training data. Train only on one season this way the vegetation and everything still the same. The model seems alright but maybe better models.
-2. Sensitivity: The population density and evolution, more people there is 
-3. Adaptor capacity: Income of the neighbourhood, how close from an hospital, 
 
-## Expected Outcomes
-- High-resolution spatial maps of heat exposure in Nairobi.
+### 1. Python Data Pipeline
+The core data processing pipeline is built using Python, Jupyter Notebooks, and geospatial libraries like `geopandas`, `rasterio`, and the google eart engine API `gee`.
+
+1. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Run Notebooks**: Navigate to the `notebooks/` directory and execute them in order (1.x -> 2.x -> 3.x) to generate the map layers and data. The scripts export processed web-ready map tiles into the `webapp/public/maps/` directory.
+
+### 2. Interactive Web Dashboard
+A Nuxt 4 / MapLibre GL based web application allows for an interactive exploration of the generated datasets, with features like layer opacity toggling to perform visual comparative analysis.
+
+1. Navigate to the webapp:
+   ```bash
+   cd webapp
+   ```
+2. Install Node dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+   Access the dashboard at `http://localhost:3000`.
+
+## Current Status & Progress
+- **Exposure**: The LST heatmap pipeline is well-established. The settlement classification model is functional but has room for improvement in training data.
+- **Sensitivity**: General, elderly, and youth demographic profiles are integrated and mapped to the city grid. 
+> We still have to present the population evolution and the income by neighbourhood.
+- **Adaptive Capacity**: Proximity indices for key infrastructure (health, water, retail, green spaces, roads) have been successfully mapped using spatial distance algorithms.
+
+## Acknowledgements
+This work is conducted as part of an EPFL ETHOS Lab semester project under the supervision of Vasantha Ramani.
