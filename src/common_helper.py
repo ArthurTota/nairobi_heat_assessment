@@ -32,6 +32,18 @@ def load_boundary(path=None):
 
 def load_geojson(filename):
     path = os.path.join(DATA_DIR, filename)
+    # Backward-compat: the data folders were renamed with numeric prefixes
+    # (exposure->1_exposure, sensitivity->2_sensitivity, adaptivity->3_adaptivity).
+    # If the legacy path is missing, retry the renamed folder so old notebooks
+    # keep working without editing every call site.
+    if not os.path.exists(path):
+        legacy = {'exposure': '1_exposure', 'sensitivity': '2_sensitivity',
+                  'adaptivity': '3_adaptivity'}
+        head = filename.split('/', 1)[0].split(os.sep, 1)[0]
+        if head in legacy:
+            alt = os.path.join(DATA_DIR, filename.replace(head, legacy[head], 1))
+            if os.path.exists(alt):
+                path = alt
     gdf = gpd.read_file(path)
     print(f"  Loaded {filename}: {len(gdf)} features")
     return gdf

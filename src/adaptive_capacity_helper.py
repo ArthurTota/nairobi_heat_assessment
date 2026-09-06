@@ -5,6 +5,8 @@ from scipy.ndimage import distance_transform_edt, gaussian_filter
 from rasterio.features import rasterize
 
 from .common_helper import *
+# `import *` skips underscore-prefixed names, so import the private helper explicitly.
+from .common_helper import _rasterize_points
 
 def compute_proximity(gdf, grid, max_distance_m=None):
     binary = _rasterize_points(gdf, grid)
@@ -16,6 +18,19 @@ def compute_proximity(gdf, grid, max_distance_m=None):
     proximity = 1.0 - (dist / max_dist)
     result = np.full_like(proximity, np.nan)
     result[grid['mask']] = proximity[grid['mask']]
+    return result
+
+def compute_distance(gdf, grid):
+    """Euclidean distance in METRES from every grid cell to the nearest feature.
+
+    Same EDT as compute_proximity but returns the raw distance (not the 0-1
+    score), so the statistics notebook can report 'mean distance to nearest
+    health facility' etc. in real units.
+    """
+    binary = _rasterize_points(gdf, grid)
+    dist = distance_transform_edt(binary == 0) * grid['resolution']
+    result = np.full_like(dist, np.nan, dtype='float32')
+    result[grid['mask']] = dist[grid['mask']]
     return result
 
 def compute_road_density(roads_gdf, grid, bandwidth_m=500):

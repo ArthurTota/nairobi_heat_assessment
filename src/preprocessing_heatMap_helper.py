@@ -5,9 +5,6 @@ import urllib.request
 from io import BytesIO
 import matplotlib.image as mpimg
 
-
-
-
 #-----------------------------------1 - LST----------------------------------------------
 def mask_clouds_landsat8(image):
     """
@@ -82,10 +79,12 @@ def visualize_data(image, region, ax=None, label='', vis_params=None, opacity=1.
         opacity (float, optional): Opacity of the image layer. Defaults to 1.0.
     """
     if vis_params is None:
+        # Blue -> red heat scale (no green), matching the dashboard LST legend
         vis_params = {
-            'min': 20, 
-            'max': 40, 
-            'palette': ['blue', 'green', 'yellow', 'orange', 'red']
+            'min': 20,
+            'max': 40,
+            'palette': ['053061', '2166ac', '92c5de', 'd1e5f0',
+                        'fddbc7', 'f4a582', 'd6604d', 'b2182b', '67001f']
         }
         
     if ax is None:
@@ -158,7 +157,7 @@ def heatmap_overyears_of(ROI, years):
     if n_years == 1: axes = [axes]
     
     import os
-    out_dir = os.path.join("results", "lst_geotiffs")
+    out_dir = os.path.join("../results", "lst_geotiffs")
     os.makedirs(out_dir, exist_ok=True)
         
     for i, year in enumerate(years):

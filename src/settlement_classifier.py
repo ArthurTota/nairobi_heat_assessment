@@ -1,6 +1,4 @@
 """
-settlement_classifier.py
-========================
 Supervised settlement classification pipeline for Nairobi using Google Earth Engine.
 
 METHODOLOGY
@@ -68,19 +66,10 @@ Typical usage in a notebook:
     >>> # 6. Visualise side-by-side
     >>> visualize_multi_year({2020: classified_2020, 2022: classified_2022}, roi)
 
-REFERENCES
-----------
-  - Kuffer, M. et al. (2016). "Slums from Space-15 Years of Slum Mapping
-    Using Remote Sensing." Remote Sensing, 8(6), 455.
-  - Engstrom, R. et al. (2015). "Mapping Slums Using Spatial Features in
-    Accra, Ghana."
-  - GEE GLCM docs: https://developers.google.com/earth-engine/apidocs/ee-image-glcmtexture
-  - GEE RF docs:   https://developers.google.com/earth-engine/apidocs/ee-classifier-smilerandomforest
 """
 
 import ee
 import json
-import math
 import urllib.request
 from io import BytesIO
 
@@ -104,20 +93,19 @@ import numpy as np
 #   - "other" absorbs vegetation, water, bare soil, roads, parks, etc.
 #   - The hard problem (informal vs formal) gets the model's full focus
 
-CLASS_NAMES  = ["informal", "formal", "other"]
-CLASS_LABELS = [0,          1,        2      ]
-CLASS_COLORS = ["#e74c3c",  "#2ecc71", "#f39c12"]
-#  informal  = red       formal = green    other = orange
+CLASS_NAMES  = ["informal", "not-informal"]
+CLASS_LABELS = [0,          1             ]
+CLASS_COLORS = ["#e74c3c",  "#2ecc71"     ]
+#  informal  = red       not-informal = green
 NUM_CLASSES  = len(CLASS_NAMES)
 
 # Map from human-readable name -> integer label (used when loading GeoJSON)
-# "vegetation" and "water" are accepted as aliases for "other" in GeoJSON files
 CLASS_MAP = {
     "informal": 0,
     "formal":   1,
-    "other":    2,
-    "vegetation": 2,  # alias -> maps to "other"
-    "water":      2,  # alias -> maps to "other"
+    "other":    1,
+    "vegetation": 1,  
+    "water":      1,  
 }
 
 # --- Feature bands -------------------------------------------------------
@@ -378,7 +366,7 @@ def build_feature_composite(roi, year, cloud_pct=DEFAULT_CLOUD_PCT):
     s2 = (
         ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
         .filterBounds(geometry)
-        .filterDate(f"{year}-01-01", f"{year}-12-31")
+        .filterDate(f"{year}-06-01", f"{year}-09-30")
         .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", cloud_pct))
         .map(mask_s2_clouds)
         .median()
@@ -397,82 +385,6 @@ def build_feature_composite(roi, year, cloud_pct=DEFAULT_CLOUD_PCT):
 # -----------------------------------------------------------------------------
 # 3.  TRAINING  DATA
 # -----------------------------------------------------------------------------
-
-def _make_rect(center_lon, center_lat, half_deg=0.001):
-    """Utility: create a small rectangle polygon from a centre point."""
-    return ee.Geometry.Rectangle([
-        center_lon - half_deg,
-        center_lat - half_deg,
-        center_lon + half_deg,
-        center_lat + half_deg,
-    ])
-
-
-def get_default_training_zones():
-    """
-    Return an ee.FeatureCollection of well-known Nairobi training polygons.
-
-    These polygons are MUCH LARGER than the previous version (approx 1-2 km wide)
-    to provide thousands of training pixels per zone.  They don't have to
-    be square - any shape works - but rectangles are used here for simplicity.
-
-    For best results, create your own GeoJSON with precise, irregular
-    polygons that follow actual settlement boundaries (use geojson.io
-    + satellite basemap).
-
-    3 classes:
-      0 = informal:  Kibera, Mathare, Korogocho, Mukuru, Kangemi, Kawangware
-      1 = formal:    Karen, Runda, Muthaiga, Kilimani, Lavington, Parklands
-      2 = other:     Nairobi National Park, Karura Forest, JKIA Airport,
-                     Ngong Rd Forest, Industrial Area
-
-    Returns:
-        ee.FeatureCollection: Training zones with 'label' (int) and 'name' (str).
-    """
-    zones = []
-
-    def add_rect(lon, lat, label, name, half=0.005):
-        """Add a rectangular training zone. Default half=0.005 approx 1.1 km."""
-        zones.append(
-            ee.Feature(
-                _make_rect(lon, lat, half),
-                {LABEL_PROPERTY: label, "name": name}
-            )
-        )
-
-    # -- INFORMAL (label = 0) --------------------------------------------------
-    # Moderate-size polygons covering the core of each known slum.
-    # half=0.003 -> approx 660m x 660m -> approx 4 400 pixels at 10m, approx 490 at 30m
-    add_rect(36.7870, -1.3130, 0, "Kibera", half=0.004)
-    add_rect(36.8560, -1.2620, 0, "Mathare", half=0.003)
-    add_rect(36.8830, -1.2490, 0, "Korogocho", half=0.003)
-    add_rect(36.8490, -1.3190, 0, "Mukuru", half=0.003)
-    add_rect(36.7450, -1.2660, 0, "Kangemi", half=0.002)
-    add_rect(36.7280, -1.2760, 0, "Kawangware", half=0.003)
-    add_rect(36.8620, -1.2570, 0, "Huruma", half=0.002)
-
-    # -- FORMAL (label = 1) ----------------------------------------------------
-    # Various formal residential areas with different densities.
-    add_rect(36.7020, -1.3280, 1, "Karen", half=0.004)
-    add_rect(36.8050, -1.2080, 1, "Runda", half=0.004)
-    add_rect(36.8200, -1.2500, 1, "Muthaiga", half=0.003)
-    add_rect(36.7830, -1.2930, 1, "Kilimani", half=0.003)
-    add_rect(36.7750, -1.2860, 1, "Lavington", half=0.003)
-    add_rect(36.8100, -1.2650, 1, "Parklands", half=0.003)
-    add_rect(36.8220, -1.2900, 1, "Nairobi CBD", half=0.003)
-
-    # -- OTHER (label = 2) -----------------------------------------------------
-    # "Other" zones so the model learns what is NOT a settlement.
-    # Nairobi National Park is key - prevents misclassifying parks as formal.
-    add_rect(36.8500, -1.3700, 2, "Nairobi Natl Park", half=0.008)
-    add_rect(36.8330, -1.2350, 2, "Karura Forest", half=0.005)
-    add_rect(36.7600, -1.3050, 2, "Ngong Rd Forest", half=0.003)
-    add_rect(36.9260, -1.3200, 2, "JKIA Airport", half=0.005)
-    add_rect(36.8570, -1.3050, 2, "Industrial Area", half=0.003)
-    add_rect(36.8270, -1.2700, 2, "City Park", half=0.002)
-
-    return ee.FeatureCollection(zones)
-
 
 def load_training_zones(geojson_path):
     """
